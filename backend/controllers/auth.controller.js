@@ -21,12 +21,6 @@ export const signup = async (req, res) => {
       return res.status(400).json({ error: 'Email already exists' });
     }
 
-    if (password.length < 6) {
-      return res
-        .status(400)
-        .json({ error: 'Password must be more than 6 characters' });
-    }
-
     //Hash Password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
@@ -61,9 +55,42 @@ export const signup = async (req, res) => {
 };
 
 export const login = async (req, res) => {
-  res.json({ data: 'You hit the login endpoint' });
+  try {
+    const { username, password } = req.body;
+    const user = await User.findOne({ username });
+    const isPasswordCorrect = await bcrypt.compare(
+      password,
+      user?.password || ''
+    );
+
+    if (!user || !isPasswordCorrect) {
+      return res.status(400).json({ error: 'Invalid username or password' });
+    }
+
+    generateTokenAndSetCookie(user._id, res);
+
+    res.status(200).json({
+      _id: user._id,
+      username: user.username,
+      fullName: user.fullName,
+      email: user.email,
+      follower: user.followers,
+      following: user.following,
+      profileImg: user.profileImg,
+      coverImg: user.coverImg,
+    });
+  } catch (error) {
+    console.log(`Error in login function: ${error.message}`);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 };
 
 export const logout = async (req, res) => {
-  res.json({ data: 'You hit the logout endpoint' });
+  try {
+    res.cookie('jwt', '', { maxAge: 0 });
+    res.status(200).json({ message: 'logged out succesfully' });
+  } catch (error) {
+    console.log(`Error in logout function: ${error.message}`);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 };
